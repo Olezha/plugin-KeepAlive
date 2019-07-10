@@ -23,7 +23,6 @@ import java.net.MalformedURLException;
 import java.net.URLDecoder;
 
 import keepalive.Plugin;
-import keepalive.util.Debug;
 import pluginbase.PageBase;
 
 public class AdminPage extends PageBase {
@@ -111,7 +110,7 @@ public class AdminPage extends PageBase {
 				 html("info", formPassword).replaceAll("#1", plugin.getVersion()));
 
 		} catch (Exception e) {
-			log("AdminPage.handleRequest(): " + Debug.stackTrace(e));
+			log("AdminPage.handleRequest(): " + e.getMessage());
 		}
 	}
 
@@ -314,7 +313,7 @@ public class AdminPage extends PageBase {
 			}
 
 		} catch (Exception e) {
-			log("AdminPage.updateUskEdition(): " + Debug.stackTrace(e));
+			log("AdminPage.updateUskEdition(): " + e.getMessage());
 		}
 	}
 
@@ -328,7 +327,7 @@ public class AdminPage extends PageBase {
 				return uri;
 
 		} catch (Exception e) {
-			log("AdminPage.getShortUri(): " + Debug.stackTrace(e));
+			log("AdminPage.getShortUri(): " + e.getMessage());
 			return null;
 		}
 	}
@@ -350,7 +349,7 @@ public class AdminPage extends PageBase {
 			saveProp();
 
 		} catch (Exception e) {
-			log("AdminPage.setPropByParam(): " + Debug.stackTrace(e));
+			log("AdminPage.setPropByParam(): " + e.getMessage());
 		}
 	}
 

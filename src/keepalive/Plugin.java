@@ -21,7 +21,6 @@ package keepalive;
 import freenet.client.HighLevelSimpleClientImpl;
 import freenet.pluginmanager.PluginRespirator;
 import keepalive.service.reinserter.Reinserter;
-import keepalive.util.Debug;
 import keepalive.web.AdminPage;
 import pluginbase.PluginBase;
 
@@ -209,7 +208,7 @@ public class Plugin extends PluginBase {
 				}
 			}
 		} catch (Exception e) {
-			log("Plugin.isDuplicate(): " + Debug.stackTrace(e), 2);
+			log("Plugin.isDuplicate(): " + e.getMessage(), 2);
 		}
 		return false;
 	}

@@ -69,7 +69,6 @@ import keepalive.model.Segment;
 import keepalive.service.net.SingleFetch;
 import keepalive.service.net.SingleInsert;
 import keepalive.service.net.SingleJob;
-import keepalive.util.Debug;
 import org.apache.tools.tar.TarInputStream;
 
 public class Reinserter extends Thread {
@@ -1101,7 +1100,7 @@ public class Reinserter extends Thread {
 
 				} catch (Exception e) {
 					if (archiveType != null) {
-						log("unzip and construct metadata: " + Debug.stackTrace(e), 0, 2);
+						log("unzip and construct metadata: " + e.getMessage(), 0, 2);
 					}
 				}
 			}
