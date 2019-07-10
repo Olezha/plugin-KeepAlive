@@ -74,6 +74,8 @@ import org.apache.tools.tar.TarInputStream;
 
 public class Reinserter extends Thread {
 
+	private static final int WAITING_COUNTER_LIMIT = 1000;
+
 	private Plugin plugin;
 	private PluginRespirator pr;
 	private int siteId;
@@ -113,7 +115,8 @@ public class Reinserter extends Thread {
 			plugin.setReinserter(this);
 
 			// activity guard
-			new ActivityGuard(this).start();
+			new ActivityGuard(this)
+					.start();
 
 		} catch (Exception e) {
 			plugin.log("Reinserter(): " + e.getMessage());
@@ -239,16 +242,18 @@ public class Reinserter extends Thread {
 				}
 
 				// next segment
-				int nSegmentSize = 0;
+				int segmentSize = 0;
 				for (Block block : blocks.values()) {
 					if (block.getSegmentId() == segments.size()) {
-						nSegmentSize++;
+						segmentSize++;
 					}
 				}
-				if (nSegmentSize == 0) {
-					break; // ready
+
+				if (segmentSize == 0) {
+					break; // ready (no more segments)
 				}
-				Segment segment = new Segment(this, segments.size(), nSegmentSize);
+
+				Segment segment = new Segment(this, segments.size(), segmentSize);
 				for (Block block : blocks.values()) {
 					if (block.getSegmentId() == segments.size()) {
 						segment.addBlock(block);
@@ -265,7 +270,7 @@ public class Reinserter extends Thread {
 
 					// select prove blocks
 					ArrayList<Block> requestedBlocks = new ArrayList<>();
-					int segmentSize = segment.size();
+					segmentSize = segment.size();
 					// always fetch exactly the configured number of blocks (or half segment size, whichever is smaller)
 					int splitfileTestSize = Math.min(
 						 plugin.getIntProp("splitfile_test_size"),
@@ -286,7 +291,8 @@ public class Reinserter extends Thread {
 						waitForNextFreeThread(power);
 
 						// fetch a block
-						(new SingleFetch(this, requestedBlock, true)).start();
+						new SingleFetch(this, requestedBlock, true)
+								.start();
 					}
 
 					FetchBlocksResult result = waitForAllBlocksFetched(requestedBlocks);
@@ -389,10 +395,12 @@ public class Reinserter extends Thread {
 							updateSegmentStatistic(segment, false);
 							segment.setHealingNotPossible(true);
 							checkFinishedSegments();
-							continue;
+
+							doReinsertions = false;
+							break;
 						}
 
-						// encode (= build all data blocks  and check blocks from data blocks)
+						// encode (= build all data blocks and check blocks from data blocks)
 						log(segment, "start encoding", 0, 1);
 						try {
 							codec.encode(dataBlocks, checkBlocks, checkBlocksPresent, CHKBlock.DATA_LENGTH);
@@ -441,10 +449,12 @@ public class Reinserter extends Thread {
 								segment.regFetchSuccess(true);
 							} else {
 								segment.regFetchSuccess(false);
-								new SingleInsert(this, segment.getBlock(i)).start();
+								new SingleInsert(this, segment.getBlock(i))
+										.start();
 							}
 						} else {
-							new SingleInsert(this, segment.getBlock(i)).start();
+							new SingleInsert(this, segment.getBlock(i))
+									.start();
 						}
 					}
 
@@ -456,9 +466,14 @@ public class Reinserter extends Thread {
 
 			// wait for finishing top block, if it was fetched.
 			if (segments.size() > 0 && segments.get(0) != null) {
+				int waitCounter = 0;
 				while (!(segments.get(0).isFinished())) {
 					synchronized (this) {
-						this.wait(1000);
+						if (waitCounter++ < WAITING_COUNTER_LIMIT) {
+							this.wait(1000);
+						} else {
+							log("Reinserter.run(): waiting for finishing top block exceeded the limit", 0);
+						}
 					}
 
 					if (!isActive()) {
@@ -471,9 +486,14 @@ public class Reinserter extends Thread {
 
 			// wait for finishing all segments
 			if (doReinsertions) {
+				int waitCounter = 0;
 				while (plugin.getIntProp("segment_" + siteId) != maxSegmentId) {
 					synchronized (this) {
-						this.wait(1000);
+						if (waitCounter++ < WAITING_COUNTER_LIMIT) {
+							this.wait(1000);
+						} else {
+							log("Reinserter.run(): waiting for finishing all segments exceeded the limit", 0);
+						}
 					}
 
 					if (!isActive()) {
