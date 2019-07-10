@@ -35,7 +35,6 @@ public abstract class SingleJob extends Thread {
 	String compressionAlgorithm;
 
 	private String jobType;
-	private boolean active = true;
 
 	SingleJob(Reinserter reinserter, String jobType, Block block) {
 		this.reinserter = reinserter;
@@ -53,7 +52,7 @@ public abstract class SingleJob extends Thread {
 		try {
 
 			// start lifetime guard
-			(new ActivityGuard(this, jobType)).start();
+			new ActivityGuard(this, jobType).start();
 
 		} catch (Exception e) {
 			plugin.log("singleJob.run(): " + e.getMessage(), 0);
@@ -68,11 +67,12 @@ public abstract class SingleJob extends Thread {
 		uriExtra[2] = 0;
 
 		// get the compression algorithm of the block
-		if (uriExtra[4] >= 0)
+		if (uriExtra[4] >= 0) {
 			compressionAlgorithm =
-				 Compressor.COMPRESSOR_TYPE.getCompressorByMetadataID((short) uriExtra[4]).name;
-		else
+					Compressor.COMPRESSOR_TYPE.getCompressorByMetadataID((short) uriExtra[4]).name;
+		} else {
 			compressionAlgorithm = "none";
+		}
 
 		log("request: " + block.getUri().toString() +
 			 " (crypt=" + uriExtra[1] +
@@ -88,7 +88,7 @@ public abstract class SingleJob extends Thread {
 			if (reinserter.isActive()) {
 				// log
 				String cFirstLog = jobType + ": " + block.getUri();
-				if (!block.getFetchSuccessful() && !block.getInsertSuccessful()) {
+				if (!block.isFetchSuccessful() && !block.isInsertSuccessful()) {
 					cFirstLog = "<b>" + cFirstLog + "</b>";
 					block.setResultLog("<b>" + block.getResultLog() + "</b>");
 				}

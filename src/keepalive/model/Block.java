@@ -77,6 +77,10 @@ public class Block {
 		return fetchSuccessful;
 	}
 
+	public void setFetchSuccessful(boolean successful) {
+		fetchSuccessful = successful;
+	}
+
 	boolean isInsertDone() {
 		return insertDone;
 	}
@@ -85,20 +89,12 @@ public class Block {
 		insertDone = done;
 	}
 
-	public boolean getInsertSuccessful() {
+	public boolean isInsertSuccessful() {
 		return insertSuccessful;
 	}
 
 	public void setInsertSuccessful(boolean successful) {
 		insertSuccessful = successful;
-	}
-
-	public boolean getFetchSuccessful() {
-		return fetchSuccessful;
-	}
-
-	public void setFetchSuccessful(boolean successful) {
-		fetchSuccessful = successful;
 	}
 
 	public String getResultLog() {

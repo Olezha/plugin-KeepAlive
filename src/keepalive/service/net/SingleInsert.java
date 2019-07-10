@@ -108,7 +108,7 @@ public class SingleInsert extends SingleJob {
 
 			// reg success if single-block-segment
 			if (segment.size() == 1) {
-				reinserter.updateSegmentStatistic(segment, block.getInsertSuccessful());
+				reinserter.updateSegmentStatistic(segment, block.isInsertSuccessful());
 			}
 
 			// finish
