@@ -24,7 +24,7 @@ import keepalive.Plugin;
 import keepalive.service.reinserter.Reinserter;
 import keepalive.model.Block;
 
-public abstract class SingleJob extends Thread {
+public abstract class SingleJob {
 
     public static final int MAX_LIFETIME = 30;
 
@@ -41,22 +41,9 @@ public abstract class SingleJob extends Thread {
         this.jobType = jobType;
         this.block = block;
         this.plugin = reinserter.getPlugin();
-        this.setName("KeepAlive SingleJob");
 
         // init
         reinserter.incrementActiveSingleJobCount();
-    }
-
-    @Override
-    public void run() {
-        try {
-
-            // start lifetime guard
-            (new ActivityGuard(this, jobType)).start();
-
-        } catch (Exception e) {
-            plugin.log("singleJob.run(): " + e.getMessage(), 0);
-        }
     }
 
     FreenetURI getUri() {
@@ -111,62 +98,5 @@ public abstract class SingleJob extends Thread {
 
     protected void log(String message) {
         log(message, 1);
-    }
-
-    private class ActivityGuard extends Thread {
-
-        private final SingleJob singleJob;
-        private final long startTime;
-        private final String type;
-
-        ActivityGuard(SingleJob singleJob, String type) {
-            this.singleJob = singleJob;
-            this.type = type;
-            startTime = System.currentTimeMillis();
-        }
-
-        @Override
-        public synchronized void run() {
-            try {
-
-                // stop
-                while (reinserter.isActive() && singleJob.isAlive() && getLifetime() < MAX_LIFETIME) {
-                    wait(1000);
-                }
-
-                // has timeout stop
-                if (reinserter.isActive() && singleJob.isAlive()) {
-                    singleJob.stop();
-                    singleJob.block.appendResultLog("<b>-> " + jobType + " aborted (timeout)</b>");
-                }
-
-                // has stopped after reinserter stop
-                if (!reinserter.isActive()) {
-                    singleJob.stop();
-                    long nStopCheckBegin = System.currentTimeMillis();
-                    while (singleJob.isAlive() && nStopCheckBegin > System.currentTimeMillis() - 60 * 1000) {
-                        try {
-                            wait(1000);
-                        } catch (InterruptedException ignored) {
-                        }
-                    }
-
-                    if (!singleJob.isAlive()) {
-                        plugin.log("single " + type + " stopped (" + singleJob.reinserter.getSiteId() + ")");
-                    } else {
-                        plugin.log("single " + type +
-                                " not stopped  - stop was indicated 1 minute before (" +
-                                singleJob.reinserter.getSiteId() + ")");
-                    }
-                }
-
-            } catch (InterruptedException e) {
-                plugin.log("singleJob.ActivityGuard.run(): " + e.getMessage(), 0);
-            }
-        }
-
-        private long getLifetime() {
-            return (System.currentTimeMillis() - startTime) / 60 / 1000;
-        }
     }
 }

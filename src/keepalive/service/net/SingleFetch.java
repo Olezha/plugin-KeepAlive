@@ -28,22 +28,23 @@ import keepalive.service.reinserter.Reinserter;
 import keepalive.model.Block;
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
-public class SingleFetch extends SingleJob {
+public class SingleFetch extends SingleJob implements Callable<Boolean> {
 
     private boolean persistenceCheck;
 
     public SingleFetch(Reinserter reinserter, Block block, boolean persistenceCheck) {
         super(reinserter, "fetch", block);
 
-        setName("KeepAlive SingleFetch");
         this.persistenceCheck = persistenceCheck;
     }
 
     @Override
-    public void run() {
-        super.run();
+    public Boolean call() {
+        Thread.currentThread().setName("KeepAlive SingleFetch");
         FetchResult fetchResult = null;
+        boolean fetchSuccessful = false;
 
         try {
 
@@ -75,6 +76,7 @@ public class SingleFetch extends SingleJob {
                     block.setBucket(new ArrayBucket(fetchResult.asByteArray()));
                     block.setFetchSuccessful(true);
                     block.setResultLog("-> fetch successful");
+                    fetchSuccessful = true;
                 }
             }
 
@@ -90,9 +92,11 @@ public class SingleFetch extends SingleJob {
             }
             finish();
         }
+
+        return fetchSuccessful;
     }
 
-    private class HLSCIgnoreStore extends HighLevelSimpleClientImpl {
+    private static class HLSCIgnoreStore extends HighLevelSimpleClientImpl {
 
         HLSCIgnoreStore(HighLevelSimpleClientImpl hlsc) {
             super(hlsc);
