@@ -119,7 +119,7 @@ public class SingleInsert extends SingleJob implements Runnable {
             block.setInsertDone(true);
 
         } catch (Exception e) {
-            plugin.log("SingleInsert.run(): " + e.getMessage(), 0);
+            log("SingleInsert.run(): " + e.getMessage(), 0);
         } finally {
             finish();
         }

@@ -18,18 +18,10 @@
  */
 package keepalive.service.reinserter;
 
+import freenet.client.*;
 import freenet.client.ArchiveManager.ARCHIVE_TYPE;
-import freenet.client.ClientMetadata;
-import freenet.client.FECCodec;
-import freenet.client.FetchContext;
-import freenet.client.FetchException;
-import freenet.client.FetchException.FetchExceptionMode;
-import freenet.client.FetchResult;
-import freenet.client.FetchWaiter;
 import freenet.client.InsertContext.CompatibilityMode;
-import freenet.client.Metadata;
 import freenet.client.Metadata.SplitfileAlgorithm;
-import freenet.client.MetadataParseException;
 import freenet.client.async.ClientBaseCallback;
 import freenet.client.async.ClientContext;
 import freenet.client.async.ClientGetState;
@@ -71,6 +63,7 @@ import java.util.zip.ZipInputStream;
 import keepalive.Plugin;
 import keepalive.model.Block;
 import keepalive.model.Segment;
+import keepalive.service.net.FetchFailedException;
 import keepalive.service.net.SingleFetch;
 import keepalive.service.net.SingleInsert;
 import keepalive.service.net.SingleJob;
@@ -185,8 +178,8 @@ public class Reinserter extends Thread {
                     log(uri.toString(), 0);
                     try {
                         parseMetadata(uri, null, 0);
-                    } catch (FetchException e) {
-                        log(e.extraMessage, 0);
+                    } catch (FetchFailedException e) {
+                        log(e.getMessage(), 0);
                         startReinsertionNextSite();
                         return;
                     }
@@ -350,6 +343,8 @@ public class Reinserter extends Thread {
                             }
                         }
 
+                        log(segment, "4", 0);
+
                         executor = Executors.newFixedThreadPool(power);
                         fetchBlocksResult = new FetchBlocksResult();
                         try {
@@ -373,6 +368,8 @@ public class Reinserter extends Thread {
                                 executor.shutdownNow();
                             }
                         }
+
+                        log(segment, "5", 0);
 
                         persistenceRate = fetchBlocksResult.calculatePersistenceRate();
                         if (persistenceRate >= (double) plugin.getIntProp("splitfile_tolerance") / 100.0) {
@@ -691,7 +688,7 @@ public class Reinserter extends Thread {
         }
     }
 
-    private void parseMetadata(FreenetURI uri, Metadata metadata, int level) throws FetchException {
+    private void parseMetadata(FreenetURI uri, Metadata metadata, int level) throws FetchFailedException {
         try {
 
             if (terminated) {
@@ -813,7 +810,7 @@ public class Reinserter extends Thread {
                         }
 
                         if (!isActive()) {
-                            throw new FetchException(FetchExceptionMode.UNKNOWN_SPLITFILE_METADATA, "Manifest cannot be fetched");
+                            throw new FetchFailedException("Manifest cannot be fetched");
                         }
 
                         synchronized (this) {
@@ -826,10 +823,10 @@ public class Reinserter extends Thread {
                 }
             }
 
-        } catch (FetchException e) {
-            throw e;
-        } catch (Exception e) {
-            plugin.log("Reinserter.parseMetadata(): " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (FetchException | MetadataParseException e) {
+            log("Reinserter.parseMetadata(): " + e.getMessage(), 0);
         }
     }
 
@@ -1154,7 +1151,7 @@ public class Reinserter extends Thread {
             plugin.getFreenetClient().fetch(uri, -1, fetchWaiter, fetchContext); // TODO: move fetch to net package
             fetchWaiter.waitForCompletion();
         } catch (freenet.client.FetchException e) {
-            if (e.getMode() == FetchExceptionMode.PERMANENT_REDIRECT) {
+            if (e.getMode() == FetchException.FetchExceptionMode.PERMANENT_REDIRECT) {
                 uri = updateUsk(e.newURI);
             }
         }
@@ -1370,10 +1367,6 @@ public class Reinserter extends Thread {
         } else {
             log(segment, cMessage + " = null", 1, 2);
         }
-    }
-
-    public int getSiteId() {
-        return siteId;
     }
 
     public ArrayList<Segment> getSegments() {

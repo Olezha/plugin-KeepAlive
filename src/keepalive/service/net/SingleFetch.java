@@ -85,7 +85,7 @@ public class SingleFetch extends SingleJob implements Callable<Boolean> {
             block.setFetchDone(true);
 
         } catch (IOException e) {
-            plugin.log("SingleFetch.run(): " + e.getMessage(), 0);
+            log("SingleFetch.run(): " + e.getMessage(), 0);
         } finally {
             if (fetchResult != null && fetchResult.asBucket() != null) {
                 fetchResult.asBucket().free();
