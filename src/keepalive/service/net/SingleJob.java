@@ -41,9 +41,6 @@ public abstract class SingleJob {
         this.jobType = jobType;
         this.block = block;
         this.plugin = reinserter.getPlugin();
-
-        // init
-        reinserter.incrementActiveSingleJobCount();
     }
 
     FreenetURI getUri() {
@@ -81,13 +78,10 @@ public abstract class SingleJob {
                 }
                 log(cFirstLog);
                 log(block.getResultLog());
-
-                // finish
-                reinserter.decrementActiveSingleJobCount();
             }
 
         } catch (Exception e) {
-            plugin.log("singleJob.finish(): " + e.getMessage(), 0);
+            log("singleJob.finish(): " + e.getMessage(), 0);
         }
     }
 

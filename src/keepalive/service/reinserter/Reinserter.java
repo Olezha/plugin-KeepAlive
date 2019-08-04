@@ -57,7 +57,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipInputStream;
 
 import keepalive.Plugin;
@@ -80,7 +79,6 @@ public class Reinserter extends Thread {
     private int parsedSegmentId;
     private int parsedBlockId;
     private ArrayList<Segment> segments = new ArrayList<>();
-    private AtomicInteger activeSingleJobCount = new AtomicInteger();
     private long startedAt;
     private boolean terminated;
 
@@ -874,14 +872,6 @@ public class Reinserter extends Thread {
 
     public Plugin getPlugin() {
         return plugin;
-    }
-
-    public void incrementActiveSingleJobCount() {
-        activeSingleJobCount.incrementAndGet();
-    }
-
-    public void decrementActiveSingleJobCount() {
-        activeSingleJobCount.decrementAndGet();
     }
 
     private static class FetchBlocksResult {
