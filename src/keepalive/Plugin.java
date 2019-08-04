@@ -95,6 +95,7 @@ public class Plugin extends PluginBase {
     public void startReinserter(int nSiteId) {
         try {
 
+            // TODO: add Reinserter activity guard near here
             (new Reinserter(this, nSiteId)).start();
 
         } catch (Exception e) {
@@ -222,7 +223,7 @@ public class Plugin extends PluginBase {
         return false;
     }
 
-    public void removeUri(int id) throws Exception {
+    public void removeUri(int id) {
         // stop reinserter
         if (id == getIntProp("active")) {
             stopReinserter();
