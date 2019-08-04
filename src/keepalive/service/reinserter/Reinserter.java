@@ -129,8 +129,9 @@ public class Reinserter extends Thread {
             plugin.clearLog(plugin.getLogFilename(siteId));
             startedAt = System.currentTimeMillis();
 
-            // update and register uri
             FreenetURI uri = new FreenetURI(uriProp);
+
+            // update if USK
             if (uri.isUSK()) {
                 FreenetURI newUri = updateUsk(uri);
                 if (newUri != null && !newUri.equals(uri)) {
@@ -148,6 +149,8 @@ public class Reinserter extends Thread {
                     }
                 }
             }
+
+            // register uri
             registerManifestUri(uri, -1);
 
             // load list of keys (if exists)
@@ -1044,7 +1047,7 @@ public class Reinserter extends Thread {
             uri = normalizeUri(uri);
             assert uri != null;
             if (uri.isCHK()) {
-                uri.getExtra()[2] = 0;  // deactivate control flag
+                uri.getExtra()[2] = 0; // deactivate control flag
             }
 
             // fetch raw data
