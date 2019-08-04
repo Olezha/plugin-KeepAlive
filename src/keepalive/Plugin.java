@@ -88,7 +88,7 @@ public class Plugin extends PluginBase {
             }
 
         } catch (Exception e) {
-            log("Plugin.runPlugin(): " + e.getMessage(), 0);
+            log("Plugin.runPlugin Exception: " + e.getMessage(), 0);
         }
     }
 
@@ -98,7 +98,7 @@ public class Plugin extends PluginBase {
             (new Reinserter(this, nSiteId)).start();
 
         } catch (Exception e) {
-            log("Plugin.startReinserter(): " + e.getMessage(), 0);
+            log("Plugin.startReinserter Exception: " + e.getMessage(), 0);
         }
     }
 
@@ -110,7 +110,7 @@ public class Plugin extends PluginBase {
             }
 
         } catch (Exception e) {
-            log("Plugin.stopReinserter(): " + e.getMessage(), 0);
+            log("Plugin.stopReinserter Exception: " + e.getMessage(), 0);
         }
     }
 
@@ -130,7 +130,7 @@ public class Plugin extends PluginBase {
             }
 
         } catch (Exception e) {
-            log("Plugin.getIds(): " + e.getMessage(), 0);
+            log("Plugin.getIds Exception: " + e.getMessage(), 0);
             return null;
         }
     }
@@ -169,7 +169,7 @@ public class Plugin extends PluginBase {
             return new int[]{success, failed, availableSegments};
 
         } catch (Exception e) {
-            log("Plugin.getSuccessValues(): " + e.getMessage(), 0);
+            log("Plugin.getSuccessValues Exception: " + e.getMessage(), 0);
             return null;
         }
     }
@@ -209,13 +209,15 @@ public class Plugin extends PluginBase {
 
     public synchronized boolean isDuplicate(String uri) {
         try {
+
             for (int i : getIds()) {
                 if (getProp("uri_" + i).equals(uri)) {
                     return true;
                 }
             }
+
         } catch (Exception e) {
-            log("Plugin.isDuplicate(): " + e.getMessage(), 2);
+            log("Plugin.isDuplicate Exception: " + e.getMessage(), 2);
         }
         return false;
     }
@@ -250,5 +252,51 @@ public class Plugin extends PluginBase {
         String ids = ("," + getProp("ids")).replaceAll("," + id + ",", ",");
         setProp("ids", ids.substring(1));
         saveProp();
+    }
+
+    @Override
+    public void setProp(String key, String value) {
+        try {
+            super.setProp(key, value);
+        } catch (Exception e) {
+            log(stackTraceToString(e));
+        }
+    }
+
+    @Override
+    public String getProp(String key) {
+        try {
+            return super.getProp(key);
+        } catch (Exception e) {
+            log(stackTraceToString(e));
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void setIntProp(String key, int value) {
+        try {
+            super.setIntProp(key, value);
+        } catch (Exception e) {
+            log(stackTraceToString(e));
+        }
+    }
+
+    @Override
+    public int getIntProp(String key) {
+        try {
+            return super.getIntProp(key);
+        } catch (Exception e) {
+            log(stackTraceToString(e));
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String stackTraceToString(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : e.getStackTrace()) {
+            sb.append(element.toString()).append(System.lineSeparator());
+        }
+        return sb.toString();
     }
 }

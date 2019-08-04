@@ -67,21 +67,15 @@ public abstract class SingleJob {
     }
 
     void finish() {
-        try {
-
-            if (reinserter.isActive()) {
-                // log
-                String cFirstLog = jobType + ": " + block.getUri();
-                if (!block.isFetchSuccessful() && !block.isInsertSuccessful()) {
-                    cFirstLog = "<b>" + cFirstLog + "</b>";
-                    block.setResultLog("<b>" + block.getResultLog() + "</b>");
-                }
-                log(cFirstLog);
-                log(block.getResultLog());
+        if (reinserter.isActive()) {
+            // log
+            String cFirstLog = jobType + ": " + block.getUri();
+            if (!block.isFetchSuccessful() && !block.isInsertSuccessful()) {
+                cFirstLog = "<b>" + cFirstLog + "</b>";
+                block.setResultLog("<b>" + block.getResultLog() + "</b>");
             }
-
-        } catch (Exception e) {
-            log("singleJob.finish(): " + e.getMessage(), 0);
+            log(cFirstLog);
+            log(block.getResultLog());
         }
     }
 
