@@ -54,11 +54,12 @@ public abstract class SingleJob {
         uriExtra[2] = 0;
 
         // get the compression algorithm of the block
-        if (uriExtra[4] >= 0)
+        if (uriExtra[4] >= 0) {
             compressionAlgorithm =
                     Compressor.COMPRESSOR_TYPE.getCompressorByMetadataID((short) uriExtra[4]).name;
-        else
+        } else {
             compressionAlgorithm = "none";
+        }
 
         log("request: " + block.getUri().toString() +
                 " (crypt=" + uriExtra[1] +

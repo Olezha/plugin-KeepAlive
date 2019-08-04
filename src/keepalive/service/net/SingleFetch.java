@@ -49,7 +49,7 @@ public class SingleFetch extends SingleJob implements Callable<Boolean> {
         try {
 
             // init
-            HLSCIgnoreStore hlscIgnoreStore = new HLSCIgnoreStore(plugin.getFreenetClient());
+            HLSCIgnoreStore hlscIgnoreStore = HLSCIgnoreStore.getInstance(plugin.getFreenetClient());
 
             FreenetURI fetchUri = getUri();
             block.setFetchDone(false);
@@ -95,18 +95,33 @@ public class SingleFetch extends SingleJob implements Callable<Boolean> {
 
         return fetchSuccessful;
     }
+}
 
-    private static class HLSCIgnoreStore extends HighLevelSimpleClientImpl {
+class HLSCIgnoreStore extends HighLevelSimpleClientImpl {
 
-        HLSCIgnoreStore(HighLevelSimpleClientImpl hlsc) {
-            super(hlsc);
+    private static volatile HLSCIgnoreStore hlscIgnoreStore;
+
+    private HLSCIgnoreStore(HighLevelSimpleClientImpl hlsc) {
+        super(hlsc);
+    }
+
+    static HLSCIgnoreStore getInstance(HighLevelSimpleClientImpl hlsc) {
+        HLSCIgnoreStore localHlscIgnoreStore = hlscIgnoreStore;
+        if (localHlscIgnoreStore == null) {
+            synchronized (HLSCIgnoreStore.class) {
+                localHlscIgnoreStore = hlscIgnoreStore;
+                if (localHlscIgnoreStore == null) {
+                    hlscIgnoreStore = localHlscIgnoreStore = new HLSCIgnoreStore(hlsc);
+                }
+            }
         }
+        return localHlscIgnoreStore;
+    }
 
-        @Override
-        public FetchContext getFetchContext() {
-            FetchContext fc = super.getFetchContext();
-            fc.ignoreStore = true;
-            return fc;
-        }
+    @Override
+    public FetchContext getFetchContext() {
+        FetchContext fc = super.getFetchContext();
+        fc.ignoreStore = true;
+        return fc;
     }
 }

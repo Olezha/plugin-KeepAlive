@@ -309,6 +309,9 @@ public class Reinserter extends Thread {
                             startReinsertionNextSite();
                             return;
                         }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
                     } finally {
                         if (!executor.isShutdown()) {
                             executor.shutdownNow();
@@ -362,6 +365,9 @@ public class Reinserter extends Thread {
                                 startReinsertionNextSite();
                                 return;
                             }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
                         } finally {
                             if (!executor.isShutdown()) {
                                 executor.shutdownNow();
@@ -486,6 +492,9 @@ public class Reinserter extends Thread {
                             startReinsertionNextSite();
                             return;
                         }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
                     } finally {
                         if (!executor.isShutdown()) {
                             executor.shutdownNow();
@@ -584,7 +593,7 @@ public class Reinserter extends Thread {
             startReinsertionNextSite();
 
         } catch (Exception e) {
-            plugin.log("Reinserter.run(): " + e.getMessage(), 0);
+            plugin.log("Reinserter.run(): " + e.getClass().getName() + " " + e.getMessage(), 0);
         }
     }
 
@@ -615,7 +624,7 @@ public class Reinserter extends Thread {
                 plugin.startReinserter(ids[0]);
             }
         } catch (Exception e) {
-            plugin.log("Reinserter.run(): " + e.getMessage(), 0);
+            plugin.log("Reinserter.startReinsertionNextSite(): " + e.getMessage(), 0);
         }
     }
 
@@ -1283,12 +1292,10 @@ public class Reinserter extends Thread {
 
             interrupt();
             terminated = true;
-            if (isActive() && isAlive()) {
-                plugin.log("stop reinserter (" + siteId + ")", 1);
-                log("*** stopped ***", 0);
-                plugin.setIntProp("active", -1);
-                plugin.saveProp();
-            }
+            plugin.log("stop reinserter (" + siteId + ")", 1);
+            log("*** stopped ***", 0);
+            plugin.setIntProp("active", -1);
+            plugin.saveProp();
 
         } catch (Exception e) {
             plugin.log("Reinserter.terminate(): " + e.getMessage(), 0);
