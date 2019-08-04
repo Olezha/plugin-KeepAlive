@@ -305,7 +305,7 @@ public class Reinserter extends Thread {
                         executor.shutdown();
                         boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
                         if (!done) {
-                            log(segment, "availability check failed", 0);
+                            log(segment, "<b>availability check failed</b>", 0);
                             startReinsertionNextSite();
                             return;
                         }
@@ -343,8 +343,6 @@ public class Reinserter extends Thread {
                             }
                         }
 
-                        log(segment, "4", 0);
-
                         executor = Executors.newFixedThreadPool(power);
                         fetchBlocksResult = new FetchBlocksResult();
                         try {
@@ -355,21 +353,20 @@ public class Reinserter extends Thread {
                                     Future<Boolean> fetchFuture = executor.submit(singleFetch);
                                     fetchBlocksResult.addResult(fetchFuture.get());
                                 }
-                                executor.shutdown();
-                                boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
-                                if (!done) {
-                                    log(segment, "get all available blocks failed", 0);
-                                    startReinsertionNextSite();
-                                    return;
-                                }
+                            }
+
+                            executor.shutdown();
+                            boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
+                            if (!done) {
+                                log(segment, "<b>get all available blocks failed</b>", 0);
+                                startReinsertionNextSite();
+                                return;
                             }
                         } finally {
                             if (!executor.isShutdown()) {
                                 executor.shutdownNow();
                             }
                         }
-
-                        log(segment, "5", 0);
 
                         persistenceRate = fetchBlocksResult.calculatePersistenceRate();
                         if (persistenceRate >= (double) plugin.getIntProp("splitfile_tolerance") / 100.0) {
@@ -485,7 +482,7 @@ public class Reinserter extends Thread {
                         executor.shutdown();
                         boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
                         if (!done) {
-                            log(segment, "reinsertion failed", 0);
+                            log(segment, "<b>reinsertion failed</b>", 0);
                             startReinsertionNextSite();
                             return;
                         }
