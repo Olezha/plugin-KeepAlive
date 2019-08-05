@@ -25,12 +25,13 @@ import keepalive.web.AdminPage;
 import pluginbase.PluginBase;
 
 import java.io.File;
+import java.util.concurrent.*;
 
 public class Plugin extends PluginBase {
 
-    private static final String version = "0.3.3.8-pre6-RW";
+    private static final String version = "0.3.3.8-pre8-RW";
 
-    private Reinserter reinserter;
+    private Thread reinserterRunner;
     private long propSavingTimestamp;
     private HighLevelSimpleClientImpl hlsc;
 
@@ -92,11 +93,66 @@ public class Plugin extends PluginBase {
         }
     }
 
-    public void startReinserter(int nSiteId) {
+    public void startReinserter(final int siteId) {
         try {
 
-            // TODO: add Reinserter activity guard near here
-            (new Reinserter(this, nSiteId)).start();
+            // stop previous reinserter, start this one
+            stopReinserter();
+
+            synchronized (this) {
+                final Plugin plugin = this;
+                reinserterRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        for (int id = siteId; ; ) {
+                            if (Thread.currentThread().isInterrupted()) {
+                                plugin.setIntProp("active", -1);
+                                plugin.saveProp();
+                                return;
+                            }
+
+                            setIntProp("active", id);
+                            saveProp();
+
+                            CountDownLatch latch = new CountDownLatch(1);
+                            Reinserter reinserter = new Reinserter(plugin, id, latch);
+                            reinserter.start();
+                            try {
+                                if (!latch.await(4, TimeUnit.HOURS)) {
+                                    reinserter.interrupt();
+                                    log("Terminated reinserter " + id + " by timeout");
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                reinserter.interrupt();
+                                return;
+                            }
+
+                            if (Thread.currentThread().isInterrupted()) {
+                                plugin.setIntProp("active", -1);
+                                plugin.saveProp();
+                                return;
+                            }
+
+                            // get next siteId
+                            int[] ids = getIds();
+                            int i = 0;
+                            for (; i < ids.length; i++) {
+                                if (id == ids[i]) {
+                                    break;
+                                }
+                            }
+                            if (i < ids.length - 1) {
+                                id = ids[i + 1];
+                            } else {
+                                id = ids[0];
+                            }
+                        }
+                    }
+                });
+                reinserterRunner.setName("KeepAlive Reinserter Runner");
+                reinserterRunner.start();
+            }
 
         } catch (Exception e) {
             log("Plugin.startReinserter Exception: " + e.getMessage(), 0);
@@ -106,8 +162,10 @@ public class Plugin extends PluginBase {
     public synchronized void stopReinserter() {
         try {
 
-            if (reinserter != null) {
-                reinserter.terminate();
+            if (reinserterRunner != null) {
+                reinserterRunner.interrupt();
+                setIntProp("active", -1);
+                saveProp();
             }
 
         } catch (Exception e) {
@@ -193,19 +251,13 @@ public class Plugin extends PluginBase {
 
     @Override
     public void terminate() {
+        stopReinserter();
         super.terminate();
-        if (reinserter != null) {
-            reinserter.terminate();
-        }
         log("plugin terminated", 0);
     }
 
     public HighLevelSimpleClientImpl getFreenetClient() {
         return hlsc;
-    }
-
-    public void setReinserter(Reinserter reinserter) {
-        this.reinserter = reinserter;
     }
 
     public synchronized boolean isDuplicate(String uri) {
@@ -293,7 +345,7 @@ public class Plugin extends PluginBase {
         }
     }
 
-    private String stackTraceToString(Throwable e) {
+    public String stackTraceToString(Throwable e) {
         StringBuilder sb = new StringBuilder();
         for (StackTraceElement element : e.getStackTrace()) {
             sb.append(element.toString()).append(System.lineSeparator());

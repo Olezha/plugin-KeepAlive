@@ -48,10 +48,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.zip.ZipInputStream;
 
 import keepalive.Plugin;
@@ -67,15 +64,14 @@ public final class Reinserter extends Thread {
 
     private Plugin plugin;
     private PluginRespirator pr;
-    private int siteId;
+    private final int siteId;
     private long lastActivityTime;
     private HashMap<FreenetURI, Metadata> manifestURIs;
     private HashMap<FreenetURI, Block> blocks;
     private int parsedSegmentId;
     private int parsedBlockId;
     private ArrayList<Segment> segments = new ArrayList<>();
-    private long startedAt;
-    private boolean terminated;
+    private CountDownLatch latch;
 
     private RequestClient rc = new RequestClient() {
 
@@ -90,16 +86,11 @@ public final class Reinserter extends Thread {
         }
     };
 
-    public Reinserter(Plugin plugin, int siteId) {
+    public Reinserter(Plugin plugin, int siteId, CountDownLatch latch) {
         this.plugin = plugin;
         this.siteId = siteId;
+        this.latch = latch;
         this.setName("KeepAlive ReInserter " + siteId);
-
-        // stop previous reinserter, start this one
-        plugin.stopReinserter();
-        plugin.setIntProp("active", siteId);
-        plugin.saveProp();
-        plugin.setReinserter(this);
     }
 
     @Override
@@ -113,7 +104,7 @@ public final class Reinserter extends Thread {
             String uriProp = plugin.getProp("uri_" + siteId);
             plugin.log("start reinserter for site " + uriProp + " (" + siteId + ")", 1);
             plugin.clearLog(plugin.getLogFilename(siteId));
-            startedAt = System.currentTimeMillis();
+            isActive(true);
 
             FreenetURI uri = new FreenetURI(uriProp);
 
@@ -125,7 +116,6 @@ public final class Reinserter extends Thread {
                     plugin.log("received new uri: " + newUriString, 1);
                     if (plugin.isDuplicate(newUriString)) {
                         plugin.log("remove uri as duplicate: " + newUriString, 1);
-                        startReinsertionNextSite();
                         plugin.removeUri(siteId);
                         return;
                     } else {
@@ -151,13 +141,12 @@ public final class Reinserter extends Thread {
                 parsedSegmentId = -1;
                 parsedBlockId = -1;
                 while (manifestURIs.size() > 0) {
-                    if (terminated) {
+                    if (isInterrupted()) {
                         return;
                     }
 
                     if (!isActive()) {
-                        plugin.log("Start reinsertion next site after stuck state (metadata)", 0);
-                        startReinsertionNextSite();
+                        plugin.log("Stop after stuck state (metadata)", 0);
                         return;
                     }
 
@@ -167,14 +156,13 @@ public final class Reinserter extends Thread {
                         parseMetadata(uri, null, 0);
                     } catch (FetchFailedException e) {
                         log(e.getMessage(), 0);
-                        startReinsertionNextSite();
                         return;
                     }
                     manifestURIs.remove(uri);
 
                 }
 
-                if (terminated) {
+                if (isInterrupted()) {
                     return;
                 }
 
@@ -232,21 +220,21 @@ public final class Reinserter extends Thread {
             int power = plugin.getIntProp("power");
             boolean doReinsertions = true;
             for (int attempt = 0; attempt < 8; attempt++) { // TODO: move magic number to props/settings
-                if (terminated) {
+                if (isInterrupted()) {
                     return;
                 }
 
                 // next segment
-                int nSegmentSize = 0;
+                int segmentSize = 0;
                 for (Block block : blocks.values()) {
                     if (block.getSegmentId() == segments.size()) {
-                        nSegmentSize++;
+                        segmentSize++;
                     }
                 }
-                if (nSegmentSize == 0) {
+                if (segmentSize == 0) {
                     break; // ready
                 }
-                Segment segment = new Segment(this, segments.size(), nSegmentSize);
+                Segment segment = new Segment(this, segments.size(), segmentSize);
                 for (Block block : blocks.values()) {
                     if (block.getSegmentId() == segments.size()) {
                         segment.addBlock(block);
@@ -263,7 +251,6 @@ public final class Reinserter extends Thread {
 
                     // select prove blocks
                     ArrayList<Block> requestedBlocks = new ArrayList<>();
-                    int segmentSize = segment.size();
                     // always fetch exactly the configured number of blocks (or half segment size, whichever is smaller)
                     int splitfileTestSize = Math.min(
                             plugin.getIntProp("splitfile_test_size"),
@@ -293,7 +280,6 @@ public final class Reinserter extends Thread {
                         boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
                         if (!done) {
                             log(segment, "<b>availability check failed</b>", 0);
-                            startReinsertionNextSite();
                             return;
                         }
                     } catch (InterruptedException e) {
@@ -349,7 +335,6 @@ public final class Reinserter extends Thread {
                             boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
                             if (!done) {
                                 log(segment, "<b>get all available blocks failed</b>", 0);
-                                startReinsertionNextSite();
                                 return;
                             }
                         } catch (InterruptedException e) {
@@ -476,7 +461,6 @@ public final class Reinserter extends Thread {
                         boolean done = executor.awaitTermination(1, TimeUnit.HOURS);
                         if (!done) {
                             log(segment, "<b>reinsertion failed</b>", 0);
-                            startReinsertionNextSite();
                             return;
                         }
                     } catch (InterruptedException e) {
@@ -501,13 +485,12 @@ public final class Reinserter extends Thread {
                         this.wait(1000);
                     }
 
-                    if (terminated) {
+                    if (isInterrupted()) {
                         return;
                     }
 
                     if (!isActive()) {
-                        plugin.log("Start reinsertion next site after stuck state (wait for finishing top block)", 0);
-                        startReinsertionNextSite();
+                        plugin.log("Stop after stuck state (wait for finishing top block)", 0);
                         return;
                     }
 
@@ -519,16 +502,15 @@ public final class Reinserter extends Thread {
             if (doReinsertions) {
                 while (plugin.getIntProp("segment_" + siteId) != maxSegmentId) {
                     synchronized (this) {
-                        this.wait(1000);
+                        this.wait(1_000);
                     }
 
-                    if (terminated) {
+                    if (isInterrupted()) {
                         return;
                     }
 
                     if (!isActive()) { // TODO: this is a bypass
-                        plugin.log("Start reinsertion next site after stuck state (after healing)", 0);
-                        startReinsertionNextSite();
+                        plugin.log("Stop after stuck state (after healing)", 0);
                         return;
                     }
 
@@ -577,42 +559,13 @@ public final class Reinserter extends Thread {
             log("*** reinsertion finished ***", 0, 0);
             plugin.log("reinsertion finished for " + plugin.getProp("uri_" + siteId), 1);
 
-            startReinsertionNextSite();
-
         } catch (Exception e) {
             plugin.log("Reinserter.run(): " + e.getClass().getName() + " " + e.getMessage(), 0);
-        }
-    }
-
-    private void startReinsertionNextSite() {
-        if (terminated) {
-            return;
-        }
-
-        try {
-            wait(60_000 / (System.currentTimeMillis() - startedAt) + 1); // so as not to burden the processor
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-
-        int[] ids = plugin.getIds();
-
-        int i = 0;
-        for (; i < ids.length; i++) {
-            if (siteId == ids[i]) {
-                break;
-            }
-        }
-
-        if (terminated) {
-            return;
-        }
-
-        if (i < ids.length - 1) {
-            plugin.startReinserter(ids[i + 1]);
-        } else {
-            plugin.startReinserter(ids[0]);
+            plugin.log(plugin.stackTraceToString(e));
+        } finally {
+            latch.countDown();
+            log("stopped", 0);
+            plugin.log("reinserter stopped (" + siteId + ")");
         }
     }
 
@@ -670,7 +623,7 @@ public final class Reinserter extends Thread {
 
     private void parseMetadata(FreenetURI uri, Metadata metadata, int level)
             throws FetchFailedException, MetadataParseException, FetchException, IOException {
-        if (terminated) {
+        if (isInterrupted()) {
             return;
         }
 
@@ -697,7 +650,7 @@ public final class Reinserter extends Thread {
 
             if (targetList != null) {
                 for (Entry<String, Metadata> entry : targetList.entrySet()) {
-                    if (terminated) {
+                    if (isInterrupted()) {
                         return;
                     }
                     // get document
@@ -784,7 +737,7 @@ public final class Reinserter extends Thread {
 
                 // fetchWaiter.waitForCompletion();
                 while (cb.getDecompressedData() == null) { // workaround because in some cases fetchWaiter.waitForCompletion() never finished
-                    if (terminated) {
+                    if (isInterrupted()) {
                         return;
                     }
 
@@ -1197,15 +1150,6 @@ public final class Reinserter extends Thread {
             newSuccess.append(success[i]);
         }
         plugin.setProp("success_" + siteId, newSuccess.toString());
-        plugin.saveProp();
-    }
-
-    public synchronized void terminate() {
-        this.interrupt();
-        terminated = true;
-        plugin.log("stop reinserter (" + siteId + ")", 1);
-        log("*** stopped ***", 0);
-        plugin.setIntProp("active", -1);
         plugin.saveProp();
     }
 

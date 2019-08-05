@@ -66,6 +66,10 @@ public class SingleFetch extends SingleJob implements Callable<Boolean> {
                 block.setResultLog("-> fetch error: " + e.getMessage());
             }
 
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
+            }
+
             // log / success flag
             if (block.getResultLog() == null) {
                 if (fetchResult == null) {
