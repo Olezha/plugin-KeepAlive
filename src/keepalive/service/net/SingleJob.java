@@ -53,7 +53,7 @@ public abstract class SingleJob {
         // get the compression algorithm of the block
         if (uriExtra[4] >= 0) {
             compressionAlgorithm =
-                    Compressor.COMPRESSOR_TYPE.getCompressorByMetadataID((short) uriExtra[4]).name;
+                    Compressor.COMPRESSOR_TYPE.getCompressorByMetadataID(uriExtra[4]).name;
         } else {
             compressionAlgorithm = "none";
         }
@@ -67,20 +67,20 @@ public abstract class SingleJob {
     }
 
     void finish() {
-        if (reinserter.isActive()) {
+        if (reinserter.isActive() && !reinserter.isInterrupted()) {
             // log
-            String cFirstLog = jobType + ": " + block.getUri();
+            String firstLog = jobType + ": " + block.getUri();
             if (!block.isFetchSuccessful() && !block.isInsertSuccessful()) {
-                cFirstLog = "<b>" + cFirstLog + "</b>";
+                firstLog = "<b>" + firstLog + "</b>";
                 block.setResultLog("<b>" + block.getResultLog() + "</b>");
             }
-            log(cFirstLog);
+            log(firstLog);
             log(block.getResultLog());
         }
     }
 
     protected void log(String message, int logLevel) {
-        if (reinserter.isActive()) {
+        if (reinserter.isActive() && !Thread.currentThread().isInterrupted() && !reinserter.isInterrupted()) {
             reinserter.log(block.getSegmentId(), message, 0, logLevel);
         }
     }

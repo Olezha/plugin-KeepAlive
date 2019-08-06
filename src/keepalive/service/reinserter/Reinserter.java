@@ -62,16 +62,16 @@ import org.apache.tools.tar.TarInputStream;
 
 public final class Reinserter extends Thread {
 
-    private Plugin plugin;
-    private PluginRespirator pr;
+    private final Plugin plugin;
     private final int siteId;
+    private final CountDownLatch latch;
+    private PluginRespirator pr;
     private long lastActivityTime;
     private HashMap<FreenetURI, Metadata> manifestURIs;
     private HashMap<FreenetURI, Block> blocks;
     private int parsedSegmentId;
     private int parsedBlockId;
     private ArrayList<Segment> segments = new ArrayList<>();
-    private CountDownLatch latch;
 
     private RequestClient rc = new RequestClient() {
 
